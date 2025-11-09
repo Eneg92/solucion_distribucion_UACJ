@@ -303,11 +303,10 @@ else:
     #col3.metric(label="**Producción Total Realizada**", value=f"{kpis['total_produccion_real']:,.0f} Unidades")
     st.markdown("---")
 
-st.markdown("---")
+ 
     # Gráficos de Desglose (Treemap y Pareto)
-    st.header(f"Resumen de Flujo y Demanda (Filtrado)")
+    st.header(f"Resumen de Flujo y Demanda (Filtrado)") 
     st.caption(f"Mostrando: Prod ({producto_seleccionado}) | Planta ({planta_seleccionada}) | Centro ({centro_seleccionado}) | Cliente ({cliente_seleccionado})")
-
     col1, col2 = st.columns(2)
 
     with col1:
