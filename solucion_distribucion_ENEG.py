@@ -304,10 +304,38 @@ else:
         df_cj_filt = df_cj_filt[df_cj_filt['Centro'] == centro_seleccionado]
 
     # KPIs principales (Basados en grafica.py original)
-    #st.header("KPIs Principales de la Red")
-    col1, col2 = st.columns(2)
-    col1.metric(label="**Costo Total Óptimo**", value=f"${kpis['costo_total_optimizado']:,.2f}")
-    col2.metric(label="**Demanda Total Cubierta**", value=f"{kpis['total_demanda_cubierta']:,.0f} Unidades")
+col1, col2 = st.columns(2)
+
+    # --- CSS Personalizado para Métricas ---
+    # Estilo para la etiqueta (similar a st.metric)
+    label_css = "font-size: 1rem; font-weight: bold; color: rgba(0, 0, 0, 0.7);"
+    # Estilo para el valor (tamaño 24px)
+    value_css = "font-size: 24px; font-weight: bold; line-height: 1.5;" # <-- AJUSTADO A 24px
+
+    # Métrica 1 (Costo)
+    costo_label = "Costo Total Óptimo"
+    costo_value = f"${kpis['costo_total_optimizado']:,.2f}"
+    
+    col1.markdown(f"""
+        <div style='text-align: left;'>
+            <span style='{label_css}'>{costo_label}</span>
+            <br>
+            <span style='{value_css}'>{costo_value}</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Métrica 2 (Demanda)
+    demanda_label = "Demanda Total Cubierta"
+    demanda_value = f"{kpis['total_demanda_cubierta']:,.0f} Unidades"
+
+    col2.markdown(f"""
+        <div style='text-align: left;'>
+            <span style='{label_css}'>{demanda_label}</span>
+            <br>
+            <span style='{value_css}'>{demanda_value}</span>
+        </div>
+    """, unsafe_allow_html=True)
+
     #col3.metric(label="**Producción Total Realizada**", value=f"{kpis['total_produccion_real']:,.0f} Unidades")
     st.markdown("---")
  
