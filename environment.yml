@@ -1,0 +1,10 @@
+name: streamlit-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - streamlit
+  - pandas
+  - plotly
+  - pyomo
+  - glpk
