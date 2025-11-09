@@ -5,11 +5,30 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from pyomo.environ import *
 import io
-#testing
-# Configuración de la página
-st.set_page_config(layout="wide")
-st.markdown("<h1 style='text-align: center; color: #0047AB;'>Aplicación de Optimización de Red Logística</h1>", unsafe_allow_html=True)
-st.markdown("---")
+#Información del Proyecto
+LOGO_URL = "https://www.uacj.mx/prensa/logos/logouacj-u.png"
+
+with st.container():
+    col1, col2 = st.columns([1, 3]) # Columna para logo (más pequeña), columna para texto (más grande)
+
+    with col1:
+        st.image(LOGO_URL, width=200, use_column_width='auto')
+
+    with col2:
+        st.markdown("### Universidad Autónoma de Ciudad Juárez")
+        st.markdown("#### Instituto de Ingeniería y Tecnología")
+        st.markdown("**Programa:** Ingeniería Industrial y de Sistemas")
+        st.markdown("**Materia:** <--- (Escribe el nombre de tu materia aquí) --->")
+        st.markdown("---") # Una línea divisoria dentro de la columna
+        st.markdown("**Integrantes:**")
+        st.markdown("""
+        * Esther Nohemi Encinas Guerrero
+        * Jesús Alejandro Gutiérrez Araiza
+        * Luis Alonso Lira Mota
+        """)
+        st.markdown("**Profesor:** <--- (Escribe el nombre de tu profesor aquí) --->")
+
+st.markdown("---") # La línea divisoria principal de la app
 
 def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos, df_productos):
     try:
