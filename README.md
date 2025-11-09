@@ -1,3 +1,4 @@
+
 Aplicación de Optimización de Red Logística
 Esta es una aplicación web de Streamlit que permite a los usuarios cargar datos de una red logística, ejecutar un modelo de optimización (Pyomo con GLPK) y visualizar los resultados en un dashboard interactivo.
 
@@ -9,6 +10,7 @@ plantas.csv, centros.csv, clientes.csv, costos.csv, productos.csv
 Una vez cargados los 5 archivos, el botón "Ejecutar Optimización" se activará. Haz clic en él.
 Espera a que el modelo se resuelva (verás un indicador).
 ¡Listo! El dashboard aparecerá con todos los gráficos y KPIs de la solución óptima.
+
 ---------------------------------------------------------------------
 
 Instrucciones de Despliegue (Para el Desarrollador)
