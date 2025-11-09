@@ -199,7 +199,7 @@ if not st.session_state['model_run_success']:
     # --- BLOQUE DE INFORMACIÓN DEL PROYECTO (SOLO BIENVENIDA) ---
     LOGO_FILE = "logo_uacj.png" 
     with st.container():
-        col1, col2, col3 = st.columns([1, 3, 1]) # (Ajustado a 1,3,1 como en tu código)
+        col1, col2, col3 = st.columns([1, 3, 1])
         with col2:
             try:
                 st.image(LOGO_FILE, use_column_width='auto')
@@ -392,24 +392,33 @@ else:
 
     with col1:
         st.subheader("Pareto de Demanda (Volumen)")
-        df_pareto_demanda = df_cj_filt.groupby('Cliente')['Cantidad'].sum().reset_index().sort_values(by='Cantidad', ascending=False)
+        df_pareto_demanda = df_cj_filt.groupby('Cliente')['Cantidad'].sum().reset_index()
+        # Filtramos clientes con 0 demanda
+        df_pareto_demanda = df_pareto_demanda[df_pareto_demanda['Cantidad'] > 0].sort_values(by='Cantidad', ascending=False)
+        
         if not df_pareto_demanda.empty and df_pareto_demanda['Cantidad'].sum() > 0:
+            # Calculamos Pct sobre el total
             df_pareto_demanda['Pct'] = df_pareto_demanda['Cantidad'] / df_pareto_demanda['Cantidad'].sum()
             df_pareto_demanda['Pct_Acumulado'] = df_pareto_demanda['Pct'].cumsum()
             
+            # --- CAMBIO AQUÍ: Filtramos al Top 25 ---
+            df_pareto_demanda_top25 = df_pareto_demanda.head(25)
+            
             fig_pareto_d = make_subplots(specs=[[{"secondary_y": True}]])
-            fig_pareto_d.add_trace(go.Bar(x=df_pareto_demanda['Cliente'], y=df_pareto_demanda['Cantidad'], name='Demanda'), secondary_y=False)
-            fig_pareto_d.add_trace(go.Scatter(x=df_pareto_demanda['Cliente'], y=df_pareto_demanda['Pct_Acumulado'], name='Acumulado', mode='lines+markers'), secondary_y=True)
+            # Usamos el DataFrame del Top 25 para graficar
+            fig_pareto_d.add_trace(go.Bar(x=df_pareto_demanda_top25['Cliente'], y=df_pareto_demanda_top25['Cantidad'], name='Demanda'), secondary_y=False)
+            fig_pareto_d.add_trace(go.Scatter(x=df_pareto_demanda_top25['Cliente'], y=df_pareto_demanda_top25['Pct_Acumulado'], name='Acumulado', mode='lines+markers'), secondary_y=True)
+            
             fig_pareto_d.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
             fig_pareto_d.update_layout(
-                title_text="Clientes por Volumen de Demanda",
+                title_text="Top 25 Clientes por Volumen de Demanda", # <-- Título actualizado
                 yaxis_title="Cantidad de Unidades",
                 yaxis2_title="Porcentaje Acumulado",
                 yaxis2_tickformat=".0%",
                 height=400,
-                xaxis_showticklabels=False,
                 margin=dict(t=50, l=10, r=10, b=10)
             )
+            # (Hemos quitado xaxis_showticklabels=False para que se vean los nombres)
             st.plotly_chart(fig_pareto_d, use_container_width=True)
         else:
             st.info("No hay datos de demanda por cliente para la selección actual.")
@@ -417,37 +426,43 @@ else:
     with col2:
         st.subheader("Pareto de Costo (Rentabilidad)")
         
-        # Calcular el costo por cliente (basado en la misma lógica del scatter plot)
+        # Calcular el costo por cliente
         df_costo_base = pd.merge(df_cj_filt, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
         df_costo_base['Costo_Centro_Cliente'] = df_costo_base['Costo_Centro_Cliente'].fillna(0)
         df_costo_base['Costo_Envio'] = df_costo_base['Cantidad'] * df_costo_base['Costo_Centro_Cliente']
         
         # Agrupar por cliente
-        df_pareto_costo = df_costo_base.groupby('Cliente').agg(Costo_Total=('Costo_Envio', 'sum')).reset_index().sort_values(by='Costo_Total', ascending=False)
+        df_pareto_costo = df_costo_base.groupby('Cliente').agg(Costo_Total=('Costo_Envio', 'sum')).reset_index()
+        # Filtramos clientes con 0 costo
+        df_pareto_costo = df_pareto_costo[df_pareto_costo['Costo_Total'] > 0].sort_values(by='Costo_Total', ascending=False)
         
         if not df_pareto_costo.empty and df_pareto_costo['Costo_Total'].sum() > 0:
             df_pareto_costo['Pct'] = df_pareto_costo['Costo_Total'] / df_pareto_costo['Costo_Total'].sum()
             df_pareto_costo['Pct_Acumulado'] = df_pareto_costo['Pct'].cumsum()
+
+            # --- CAMBIO AQUÍ: Filtramos al Top 25 también en Costo ---
+            df_pareto_costo_top25 = df_pareto_costo.head(25)
             
             fig_pareto_c = make_subplots(specs=[[{"secondary_y": True}]])
-            fig_pareto_c.add_trace(go.Bar(x=df_pareto_costo['Cliente'], y=df_pareto_costo['Costo_Total'], name='Costo', marker_color='red'), secondary_y=False)
-            fig_pareto_c.add_trace(go.Scatter(x=df_pareto_costo['Cliente'], y=df_pareto_costo['Pct_Acumulado'], name='Acumulado', mode='lines+markers', line_color='red'), secondary_y=True)
+            # Usamos el DataFrame del Top 25 para graficar
+            fig_pareto_c.add_trace(go.Bar(x=df_pareto_costo_top25['Cliente'], y=df_pareto_costo_top25['Costo_Total'], name='Costo', marker_color='red'), secondary_y=False)
+            fig_pareto_c.add_trace(go.Scatter(x=df_pareto_costo_top25['Cliente'], y=df_pareto_costo_top25['Pct_Acumulado'], name='Acumulado', mode='lines+markers', line_color='red'), secondary_y=True)
+            
             fig_pareto_c.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
             fig_pareto_c.update_layout(
-                title_text="Clientes por Costo de Envío",
+                title_text="Top 25 Clientes por Costo de Envío", # <-- Título actualizado
                 yaxis_title="Costo Total de Envío ($)",
                 yaxis_tickformat="$,.0f",
                 yaxis2_title="Porcentaje Acumulado",
                 yaxis2_tickformat=".0%",
                 height=400,
-                xaxis_showticklabels=False,
                 margin=dict(t=50, l=10, r=10, b=10)
             )
             st.plotly_chart(fig_pareto_c, use_container_width=True)
         else:
             st.info("No hay datos de costo por cliente para la selección actual.")
     # --- FIN DEL BLOQUE DE GRÁFICOS ---
-
+    
     st.markdown("---")
     
     # Análisis de Clientes Problemáticos (Basado en grafica.py original)
