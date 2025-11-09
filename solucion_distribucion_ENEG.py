@@ -45,7 +45,7 @@ def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos,
         model.x = Var(model.P, model.C, model.K, within=NonNegativeReals)
         model.y = Var(model.C, model.J, model.K, within=NonNegativeReals)
 
-        # Función Objetivo (Sin penalización)
+        # Función Objetivo
         def funcion_objetivo_rule(model):
             costo_produccion = sum(model.cost_prod[p, k] * model.x[p, c, k] 
                                     for p in model.P for c in model.C for k in model.K)
@@ -124,7 +124,7 @@ def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos,
     except Exception as e:
         return None, None, None, f"Error durante la optimización: {str(e)}"
 
-# --- CAMBIO 1: Inicializar los nuevos dataframes ---
+# Inicializar estado de la sesión
 if 'model_run_success' not in st.session_state:
     st.session_state['model_run_success'] = False
 if 'kpis' not in st.session_state:
@@ -169,14 +169,12 @@ if st.sidebar.button("Ejecutar Optimización", disabled=not all_files_loaded, ty
                 )
                 
                 if kpis:
-                    # --- CAMBIO 2: Guardar los dataframes originales ---
                     st.session_state['kpis'] = kpis
                     st.session_state['df_pc'] = df_x
                     st.session_state['df_cj'] = df_y
                     st.session_state['df_costos'] = df_costos
                     st.session_state['df_plantas'] = df_plantas
                     st.session_state['df_centros'] = df_centros
-                    # --- Fin del Cambio ---
                     
                     st.session_state['model_run_success'] = True
                     st.success("¡Optimización completada con éxito!")
@@ -194,7 +192,7 @@ if st.sidebar.button("Ejecutar Optimización", disabled=not all_files_loaded, ty
 # Lógica de visualización del dashboard
 if not st.session_state['model_run_success']:
     
-    # --- BLOQUE DE INFORMACIÓN DEL PROYECTO (SOLO BIENVENIDA) ---
+    # INFORMACIÓN DEL PROYECTO
     LOGO_FILE = "logo_uacj.png" 
     with st.container():
         col1, col2, col3 = st.columns([1, 3, 1])
@@ -227,7 +225,7 @@ if not st.session_state['model_run_success']:
 
     st.markdown("---") # La línea divisoria principal de la app
     
-    # --- MENSAJE DE BIENVENIDA ---
+    #MENSAJE DE BIENVENIDA
     st.info("Bienvenido. Por favor, cargue los 5 archivos de datos en el panel lateral y haga clic en 'Ejecutar Optimización' para ver el dashboard.")
     
     st.subheader("Archivos Requeridos:")
@@ -248,7 +246,6 @@ else:
     kpis = st.session_state['kpis']
     df_pc_full = st.session_state['df_pc']
     df_cj_full = st.session_state['df_cj']
-    # --- CAMBIO 3: Cargar los dataframes originales ---
     df_costos = st.session_state['df_costos']
     df_plantas_full = st.session_state['df_plantas']
     df_centros_full = st.session_state['df_centros']
@@ -315,7 +312,7 @@ else:
         df_cj_filt = df_cj_filt[df_cj_filt['Centro'] == centro_seleccionado]
         df_centros_filt = df_centros_filt[df_centros_filt['Centro'] == centro_seleccionado]
 
-    # KPIs principales (Sin st.header, como pediste)
+    #KPIs
     col1, col2 = st.columns(2)
     
     label_css = "font-size: 1rem; font-weight: bold; color: rgba(0, 0, 0, 0.7);"
@@ -330,10 +327,9 @@ else:
     demanda_value = f"{kpis['total_demanda_cubierta']:,.0f} Unidades"
 
     col2.markdown(f"<div style='text-align: left;'><span style='{label_css}'>{demanda_label}</span><br><span style='{value_css}'>{demanda_value}</span></div>", unsafe_allow_html=True)
-
     st.markdown("---")
  
-    # Gráficos de Medidor (Gauge) (Basados en grafica.py original)
+    #Gauges
     st.header("Utilización de Capacidad Total (General)")
     gauge1, gauge2 = st.columns(2)
 
@@ -372,22 +368,65 @@ else:
             }))
         fig_gauge_cd.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
         st.plotly_chart(fig_gauge_cd, use_container_width=True)
-
     st.markdown("---")
 
+    # Infraestructura
+    st.header("Utilización de Infraestructura (Filtrado)")
+    st.caption("Muestra la utilización real vs. la capacidad disponible para los filtros seleccionados.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Utilización de Plantas")
+        cap_plantas = df_plantas_filt.groupby('Planta')['Capacidad_Produccion'].sum().reset_index()
+        prod_real = df_pc_filt.groupby('Planta')['Cantidad'].sum().reset_index()
+        df_util_plantas = pd.merge(cap_plantas, prod_real, on='Planta', how='left').fillna(0)
+        df_util_plantas = df_util_plantas[df_util_plantas['Capacidad_Produccion'] > 0]
+        
+        if not df_util_plantas.empty:
+            df_util_plantas['Utilización (%)'] = (df_util_plantas['Cantidad'] / df_util_plantas['Capacidad_Produccion']) * 100
+            df_util_plantas = df_util_plantas.sort_values(by='Utilización (%)', ascending=False)
+            
+            fig_util_p = px.bar(df_util_plantas, y='Planta', x='Utilización (%)', 
+                                text=df_util_plantas['Utilización (%)'].apply(lambda x: f'{x:.1f}%'),
+                                title='Utilización por Planta',
+                                hover_data=['Cantidad', 'Capacidad_Produccion'])
+            fig_util_p.update_layout(xaxis_range=[0, 110])
+            st.plotly_chart(fig_util_p, use_container_width=True)
+        else:
+            st.info("No hay datos de utilización de plantas para la selección actual.")
 
+    with col2:
+        st.subheader("Utilización de Centros (Flujo)")
+        cap_centros = df_centros_filt.groupby('Centro')['Capacidad_Almacenamiento'].sum().reset_index()
+        flujo_real = df_pc_filt.groupby('Centro')['Cantidad'].sum().reset_index()
+        df_util_centros = pd.merge(cap_centros, flujo_real, on='Centro', how='left').fillna(0)
+        df_util_centros = df_util_centros[df_util_centros['Capacidad_Almacenamiento'] > 0]
+
+        if not df_util_centros.empty:
+            df_util_centros['Utilización (%)'] = (df_util_centros['Cantidad'] / df_util_centros['Capacidad_Almacenamiento']) * 100
+            df_util_centros = df_util_centros.sort_values(by='Utilización (%)', ascending=False)
+            
+            fig_util_c = px.bar(df_util_centros, y='Centro', x='Utilización (%)', 
+                                text=df_util_centros['Utilización (%)'].apply(lambda x: f'{x:.1f}%'),
+                                title='Utilización por Centro',
+                                hover_data=['Cantidad', 'Capacidad_Almacenamiento'])
+            fig_util_c.update_layout(xaxis_range=[0, 110])
+            st.plotly_chart(fig_util_c, use_container_width=True)
+        else:
+            st.info("No hay datos de utilización de centros para la selección actual.")
+    st.markdown("---")
+
+    #Desglose de Costos
     st.header("Desglose de Costos de la Red (Filtrado)")
     
     # Recalcular los costos basados en los filtros
-    # 1. Costo de Producción
     df_prod_cost = pd.merge(df_pc_filt, df_plantas_full[['Planta', 'Producto', 'Costo_Produccion']].drop_duplicates(), on=['Planta', 'Producto'], how='left')
     costo_produccion_calc = (df_prod_cost['Cantidad'] * df_prod_cost['Costo_Produccion']).sum()
 
-    # 2. Costo Planta -> Centro
     df_pc_cost = pd.merge(df_pc_filt, df_costos_pc_unicos, on=['Planta', 'Centro', 'Producto'], how='left')
     costo_pc_calc = (df_pc_cost['Cantidad'] * df_pc_cost['Costo_Plant_Centro']).sum()
 
-    # 3. Costo Centro -> Cliente
     df_cj_cost = pd.merge(df_cj_filt, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
     costo_cj_calc = (df_cj_cost['Cantidad'] * df_cj_cost['Costo_Centro_Cliente']).sum()
 
@@ -402,159 +441,108 @@ else:
         fig_pie_costos = px.pie(df_costos_pie, names='Componente de Costo', values='Costo', 
                                 title='Desglose de Costos Totales (Filtrado)',
                                 hole=0.3)
-        
+        # Mover etiquetas afuera
         fig_pie_costos.update_traces(textposition='outside', textinfo='percent+label+value')
-        
         st.plotly_chart(fig_pie_costos, use_container_width=True)
     else:
         st.info("No hay desglose de costos para la selección actual.")
-    
     st.markdown("---")
 
-    st.header("Utilización de Infraestructura (Filtrado)")
-    st.caption("Muestra la utilización real vs. la capacidad disponible para los filtros seleccionados.")
+    # Paretos
+    st.header("Análisis de Costos por Cliente (Top 25)")
+    st.caption(f"Muestra los 25 clientes principales para cada componente de costo. Todos los costos (excepto C-J) se asignan en función del flujo del cliente.")
+
+    #  Lógica de Asignación de Costos 
     
-    col1, col2 = st.columns(2)
+    # 1. Costo_CJ (Centro-Cliente) - Directo
+    df_cj_cost = pd.merge(df_cj_filt, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
+    df_cj_cost['Costo_CJ_Calc'] = df_cj_cost['Cantidad'] * df_cj_cost['Costo_Centro_Cliente'].fillna(0)
+    costos_cj_por_cliente = df_cj_cost.groupby('Cliente')['Costo_CJ_Calc'].sum().reset_index()
+
+    # 2. Base de asignación (Cuota de cliente por Centro-Producto)
+    flujo_out_por_centro_prod = df_cj_filt.groupby(['Centro', 'Producto'])['Cantidad'].sum().reset_index().rename(columns={'Cantidad': 'Total_Flujo_Out'})
+    df_cj_share = pd.merge(df_cj_filt, flujo_out_por_centro_prod, on=['Centro', 'Producto'], how='left')
+    df_cj_share['Total_Flujo_Out'] = df_cj_share['Total_Flujo_Out'].replace(0, 1) # Evitar división por cero
+    df_cj_share['Pct_Share'] = df_cj_share['Cantidad'] / df_cj_share['Total_Flujo_Out']
+
+    # 3. Costo_Prod (Producción) - Asignado
+    df_prod_cost_base = pd.merge(df_pc_filt, df_plantas_full[['Planta', 'Producto', 'Costo_Produccion']].drop_duplicates(), on=['Planta', 'Producto'], how='left')
+    df_prod_cost_base['Costo_Prod_Calc'] = df_prod_cost_base['Cantidad'] * df_prod_cost_base['Costo_Produccion'].fillna(0)
+    costo_prod_por_centro_prod = df_prod_cost_base.groupby(['Centro', 'Producto'])['Costo_Prod_Calc'].sum().reset_index()
     
-    with col1:
-        st.subheader("Utilización de Plantas")
-        # 1. Capacidad de Plantas (filtrada)
-        cap_plantas = df_plantas_filt.groupby('Planta')['Capacidad_Produccion'].sum().reset_index()
-        # 2. Producción Real (filtrada)
-        prod_real = df_pc_filt.groupby('Planta')['Cantidad'].sum().reset_index()
-        # 3. Mergear
-        df_util_plantas = pd.merge(cap_plantas, prod_real, on='Planta', how='left').fillna(0)
-        df_util_plantas = df_util_plantas[df_util_plantas['Capacidad_Produccion'] > 0]
+    df_prod_alloc = pd.merge(df_cj_share, costo_prod_por_centro_prod, on=['Centro', 'Producto'], how='left')
+    df_prod_alloc['Costo_Prod_Allocated'] = df_prod_alloc['Pct_Share'] * df_prod_alloc['Costo_Prod_Calc'].fillna(0)
+    costos_prod_por_cliente = df_prod_alloc.groupby('Cliente')['Costo_Prod_Allocated'].sum().reset_index()
+
+    # 4. Costo_PC (Planta-Centro) - Asignado
+    df_pc_cost_base = pd.merge(df_pc_filt, df_costos_pc_unicos, on=['Planta', 'Centro', 'Producto'], how='left')
+    df_pc_cost_base['Costo_PC_Calc'] = df_pc_cost_base['Cantidad'] * df_pc_cost_base['Costo_Plant_Centro'].fillna(0)
+    costo_pc_por_centro_prod = df_pc_cost_base.groupby(['Centro', 'Producto'])['Costo_PC_Calc'].sum().reset_index()
+
+    df_pc_alloc = pd.merge(df_cj_share, costo_pc_por_centro_prod, on=['Centro', 'Producto'], how='left')
+    df_pc_alloc['Costo_PC_Allocated'] = df_pc_alloc['Pct_Share'] * df_pc_alloc['Costo_PC_Calc'].fillna(0)
+    costos_pc_por_cliente = df_pc_alloc.groupby('Cliente')['Costo_PC_Allocated'].sum().reset_index()
+
+    # 5. Combinar todo
+    df_final_costos = pd.merge(costos_cj_por_cliente, costos_prod_por_cliente, on='Cliente', how='outer')
+    df_final_costos = pd.merge(df_final_costos, costos_pc_por_cliente, on='Cliente', how='outer')
+    df_final_costos = df_final_costos.fillna(0)
+    df_final_costos['Costo_Total'] = df_final_costos['Costo_CJ_Calc'] + df_final_costos['Costo_Prod_Allocated'] + df_final_costos['Costo_PC_Allocated']
+    
+
+    # Gráficos de Pareto
+
+    def crear_pareto(df_base, columna_costo, titulo, color_barra):
+        df_pareto = df_base[['Cliente', columna_costo]].copy()
+        df_pareto = df_pareto[df_pareto[columna_costo] > 0.01].sort_values(by=columna_costo, ascending=False)
         
-        if not df_util_plantas.empty:
-            df_util_plantas['Utilización (%)'] = (df_util_plantas['Cantidad'] / df_util_plantas['Capacidad_Produccion']) * 100
-            df_util_plantas = df_util_plantas.sort_values(by='Utilización (%)', ascending=False)
+        if not df_pareto.empty:
+            df_pareto['Pct'] = df_pareto[columna_costo] / df_pareto[columna_costo].sum()
+            df_pareto['Pct_Acumulado'] = df_pareto['Pct'].cumsum()
+            df_pareto_top25 = df_pareto.head(25)
             
-            fig_util_p = px.bar(df_util_plantas, y='Planta', x='Utilización (%)', 
-                                text=df_util_plantas['Utilización (%)'].apply(lambda x: f'{x:.1f}%'),
-                                title='Utilización por Planta',
-                                hover_data=['Cantidad', 'Capacidad_Produccion'])
-            fig_util_p.update_layout(xaxis_range=[0, 110]) # Poner el rango hasta 110 para ver el 100%
-            st.plotly_chart(fig_util_p, use_container_width=True)
-        else:
-            st.info("No hay datos de utilización de plantas para la selección actual.")
-
-    with col2:
-        st.subheader("Utilización de Centros (Flujo)")
-        # 1. Capacidad de Centros (filtrada)
-        cap_centros = df_centros_filt.groupby('Centro')['Capacidad_Almacenamiento'].sum().reset_index()
-        # 2. Flujo Real (filtrado)
-        flujo_real = df_pc_filt.groupby('Centro')['Cantidad'].sum().reset_index()
-        # 3. Mergear
-        df_util_centros = pd.merge(cap_centros, flujo_real, on='Centro', how='left').fillna(0)
-        df_util_centros = df_util_centros[df_util_centros['Capacidad_Almacenamiento'] > 0]
-
-        if not df_util_centros.empty:
-            df_util_centros['Utilización (%)'] = (df_util_centros['Cantidad'] / df_util_centros['Capacidad_Almacenamiento']) * 100
-            df_util_centros = df_util_centros.sort_values(by='Utilización (%)', ascending=False)
-            
-            fig_util_c = px.bar(df_util_centros, y='Centro', x='Utilización (%)', 
-                                text=df_util_centros['Utilización (%)'].apply(lambda x: f'{x:.1f}%'),
-                                title='Utilización por Centro',
-                                hover_data=['Cantidad', 'Capacidad_Almacenamiento'])
-            fig_util_c.update_layout(xaxis_range=[0, 110]) # Poner el rango hasta 110 para ver el 100%
-            st.plotly_chart(fig_util_c, use_container_width=True)
-        else:
-            st.info("No hay datos de utilización de centros para la selección actual.")
-
-    st.markdown("---")
-
-
-    st.header(f"Análisis de Clientes: Volumen vs. Costo (Filtrado)") 
-    st.caption(f"Mostrando: Prod ({producto_seleccionado}) | Planta ({planta_seleccionada}) | Centro ({centro_seleccionado}) | Cliente ({cliente_seleccionado})")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Pareto de Demanda (Volumen)")
-        df_pareto_demanda = df_cj_filt.groupby('Cliente')['Cantidad'].sum().reset_index()
-        df_pareto_demanda = df_pareto_demanda[df_pareto_demanda['Cantidad'] > 0].sort_values(by='Cantidad', ascending=False)
-        
-        if not df_pareto_demanda.empty and df_pareto_demanda['Cantidad'].sum() > 0:
-            df_pareto_demanda['Pct'] = df_pareto_demanda['Cantidad'] / df_pareto_demanda['Cantidad'].sum()
-            df_pareto_demanda['Pct_Acumulado'] = df_pareto_demanda['Pct'].cumsum()
-            df_pareto_demanda_top25 = df_pareto_demanda.head(25)
-            
-            fig_pareto_d = make_subplots(specs=[[{"secondary_y": True}]])
-            fig_pareto_d.add_trace(go.Bar(x=df_pareto_demanda_top25['Cliente'], y=df_pareto_demanda_top25['Cantidad'], name='Demanda'), secondary_y=False)
-            fig_pareto_d.add_trace(go.Scatter(x=df_pareto_demanda_top25['Cliente'], y=df_pareto_demanda_top25['Pct_Acumulado'], name='Acumulado', mode='lines+markers'), secondary_y=True)
-            fig_pareto_d.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
-            fig_pareto_d.update_layout(
-                title_text="Top 25 Clientes por Volumen de Demanda",
-                yaxis_title="Cantidad de Unidades",
-                yaxis2_title="Porcentaje Acumulado",
-                yaxis2_tickformat=".0%",
-                height=400,
-                margin=dict(t=50, l=10, r=10, b=10)
-            )
-            st.plotly_chart(fig_pareto_d, use_container_width=True)
-        else:
-            st.info("No hay datos de demanda por cliente para la selección actual.")
-
-    with col2:
-        st.subheader("Pareto de Costo (Rentabilidad)")
-        
-        df_costo_base = pd.merge(df_cj_filt, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
-        df_costo_base['Costo_Centro_Cliente'] = df_costo_base['Costo_Centro_Cliente'].fillna(0)
-        df_costo_base['Costo_Envio'] = df_costo_base['Cantidad'] * df_costo_base['Costo_Centro_Cliente']
-        
-        df_pareto_costo = df_costo_base.groupby('Cliente').agg(Costo_Total=('Costo_Envio', 'sum')).reset_index()
-        df_pareto_costo = df_pareto_costo[df_pareto_costo['Costo_Total'] > 0].sort_values(by='Costo_Total', ascending=False)
-        
-        if not df_pareto_costo.empty and df_pareto_costo['Costo_Total'].sum() > 0:
-            df_pareto_costo['Pct'] = df_pareto_costo['Costo_Total'] / df_pareto_costo['Costo_Total'].sum()
-            df_pareto_costo['Pct_Acumulado'] = df_pareto_costo['Pct'].cumsum()
-            df_pareto_costo_top25 = df_pareto_costo.head(25)
-            
-            fig_pareto_c = make_subplots(specs=[[{"secondary_y": True}]])
-            fig_pareto_c.add_trace(go.Bar(x=df_pareto_costo_top25['Cliente'], y=df_pareto_costo_top25['Costo_Total'], name='Costo', marker_color='red'), secondary_y=False)
-            fig_pareto_c.add_trace(go.Scatter(x=df_pareto_costo_top25['Cliente'], y=df_pareto_costo_top25['Pct_Acumulado'], name='Acumulado', mode='lines+markers', line_color='red'), secondary_y=True)
-            fig_pareto_c.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
-            fig_pareto_c.update_layout(
-                title_text="Top 25 Clientes por Costo de Envío",
-                yaxis_title="Costo Total de Envío ($)",
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            fig.add_trace(go.Bar(x=df_pareto_top25['Cliente'], y=df_pareto_top25[columna_costo], name='Costo', marker_color=color_barra), secondary_y=False)
+            fig.add_trace(go.Scatter(x=df_pareto_top25['Cliente'], y=df_pareto_top25['Pct_Acumulado'], name='Acumulado', mode='lines+markers', line_color=color_barra), secondary_y=True)
+            fig.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
+            fig.update_layout(
+                title_text=titulo,
+                yaxis_title="Costo ($)",
                 yaxis_tickformat="$,.0f",
-                yaxis2_title="Porcentaje Acumulado",
+                yaxis2_title="Pct. Acumulado",
                 yaxis2_tickformat=".0%",
                 height=400,
                 margin=dict(t=50, l=10, r=10, b=10)
             )
-            st.plotly_chart(fig_pareto_c, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No hay datos de costo por cliente para la selección actual.")
-    
+            st.info(f"No hay datos para '{titulo}'.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        crear_pareto(df_final_costos, 'Costo_Total', 'Top 25 Clientes por Costo Total (Asignado)', '#0047AB') # Azul
+    with col2:
+        crear_pareto(df_final_costos, 'Costo_CJ_Calc', 'Top 25 Clientes por Costo C-J (Directo)', '#d62728') # Rojo
+
+    col3, col4 = st.columns(2)
+    with col3:
+        crear_pareto(df_final_costos, 'Costo_PC_Allocated', 'Top 25 Clientes por Costo P-C (Asignado)', '#ff7f0e') # Naranja
+    with col4:
+        crear_pareto(df_final_costos, 'Costo_Prod_Allocated', 'Top 25 Clientes por Costo Producción (Asignado)', '#2ca02c') # Verde
+
     st.markdown("---")
     
-    # Análisis de Clientes Problemáticos (Basado en grafica.py original)
+    # Scatter
     st.header("Análisis de Clientes Menos Rentables (25% de Menor Demanda)")
     
     if cliente_seleccionado != "Todos":
         st.info(f"Ha seleccionado un solo cliente ({cliente_seleccionado}). Para ver el análisis de clientes problemáticos, cambie el filtro 'Cliente' a 'Todos'.")
     else:
-        df_scatter_base_data = df_cj_working
-        
-        if planta_seleccionada != "Todos":
-            centros_de_planta = set(df_pc_working[df_pc_working['Planta'] == planta_seleccionada]['Centro'].unique()) if not df_pc_working.empty else set()
-            df_scatter_base_data = df_scatter_base_data[df_scatter_base_data['Centro'].isin(centros_de_planta)]
-        if centro_seleccionado != "Todos":
-            df_scatter_base_data = df_scatter_base_data[df_scatter_base_data['Centro'] == centro_seleccionado]
-            
-        df_scatter_base = pd.merge(df_scatter_base_data, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
-        
-        df_scatter_base['Costo_Centro_Cliente'] = df_scatter_base['Costo_Centro_Cliente'].fillna(0)
-        
-        df_scatter_base['Costo_Envio'] = df_scatter_base['Cantidad'] * df_scatter_base['Costo_Centro_Cliente']
+        df_scatter = df_final_costos.copy()
+        df_cantidad_total = df_cj_filt.groupby('Cliente')['Cantidad'].sum().reset_index().rename(columns={'Cantidad': 'Cantidad_Total'})
+        df_scatter = pd.merge(df_scatter, df_cantidad_total, on='Cliente', how='left').fillna(0)
 
-        df_scatter = df_scatter_base.groupby('Cliente').agg(
-            Cantidad_Total=('Cantidad', 'sum'),
-            Costo_Envio_Total=('Costo_Envio', 'sum')
-        ).reset_index()
-
-        df_scatter = df_scatter[(df_scatter['Cantidad_Total'] > 0) & (df_scatter['Costo_Envio_Total'] > 0)]
+        df_scatter = df_scatter[(df_scatter['Cantidad_Total'] > 0) & (df_scatter['Costo_Total'] > 0)]
 
         if not df_scatter.empty and len(df_scatter) > 1:
             q1_cantidad = df_scatter['Cantidad_Total'].quantile(0.25)
@@ -563,13 +551,14 @@ else:
                 fig_scatter = px.scatter(
                     df_scatter_bottom25, 
                     x='Cantidad_Total',
-                    y='Costo_Envio_Total',
+                    y='Costo_Total', 
                     text='Cliente', 
-                    title=f"Clientes con Demanda Menor o Igual a {q1_cantidad:,.0f} unidades"
+                    title=f"Clientes con Demanda Menor o Igual a {q1_cantidad:,.0f} unidades",
+                    hover_data=['Costo_Prod_Allocated', 'Costo_PC_Allocated', 'Costo_CJ_Calc'] # Añadido para más detalle
                 )
                 fig_scatter.update_layout(
                     xaxis_title="CANTIDAD TOTAL (Baja Demanda)",
-                    yaxis_title="COSTO TOTAL DE ENVÍO (Alto = Más Caro)",
+                    yaxis_title="COSTO TOTAL ASIGNADO (Alto = Más Caro)",
                     xaxis_tickformat=",.0f",
                     yaxis_tickformat="$,.0f",
                     height=600
@@ -581,7 +570,7 @@ else:
         else:
             st.info("No hay suficientes datos de clientes para la selección actual para realizar este análisis.")
 
-    # Tablas de Detalle 
+    # Tablas
     st.markdown("---") 
     with st.expander("Ver Tablas de Envío Detalladas (Filtradas)"):
         st.caption("Estas tablas se actualizan con todos los filtros seleccionados.")
