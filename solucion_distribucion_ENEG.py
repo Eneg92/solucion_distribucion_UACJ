@@ -9,17 +9,11 @@ import io
 LOGO_FILE = "logo_uacj.png" 
 
 with st.container():
-    col1, col2 = st.columns([1, 3]) # Columna para logo (más pequeña), columna para texto (más grande)
-    
-    with col1:
-        try:
-            # --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-            # Cambiamos LOGO_URL por LOGO_FILE
-            st.image(LOGO_FILE, width=200, use_column_width='auto')
-        except Exception as e:
-            st.warning(f"No se pudo cargar el logo. Asegúrate de que 'logo_uacj.png' esté en tu repositorio de GitHub.")
-
+    col1, col2, col3 = st.columns([2, 1, 2]) # [Espaciador, Logo, Espaciador]
     with col2:
+        try:
+            st.image(LOGO_FILE, use_column_width='auto')
+            
         st.markdown("### Universidad Autónoma de Ciudad Juárez")
         st.markdown("#### Instituto de Ingeniería y Tecnología")
         st.markdown("**Programa:** Maestría en Inteligencia Artificial y Analítica de Datos")
