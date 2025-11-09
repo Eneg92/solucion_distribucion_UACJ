@@ -20,7 +20,7 @@ with st.container():
     st.markdown("<p style='text-align: center;'><strong>Programa:</strong> Maestría en Inteligencia Artificial y Analítica de Datos</p>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'><strong>Materia:</strong> Programación para Analítica Prescriptiva y de la Decisión</p>", unsafe_allow_html=True)
     
-    st.markdown("---") # Una línea divisoria
+    st.markdown("---") 
     
     st.markdown("<p style='text-align: center;'><strong>Integrantes:</strong></p>", unsafe_allow_html=True)
     st.markdown("""
@@ -30,8 +30,13 @@ with st.container():
     Luis Alonso Lira Mota
     </div>
     """, unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True) # Un pequeño espacio
-    st.markdown("<p style='text-align: center;'><strong>Profesor:</strong> Gilberto Rivera Zarate</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True) 
+        st.markdown("<p style='text-align: center;'><strong>Profesor:</strong></p>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='text-align: center;'>
+    Gilberto Rivera Zarate
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---") # La línea divisoria principal de la app
 
