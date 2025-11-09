@@ -297,10 +297,10 @@ else:
 
     # KPIs principales (Basados en grafica.py original)
     st.header("KPIs Principales de la Red")
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(1)
     col1.metric(label="**Costo Total Óptimo**", value=f"${kpis['costo_total_optimizado']:,.2f}")
     col2.metric(label="**Demanda Total Cubierta**", value=f"{kpis['total_demanda_cubierta']:,.0f} Unidades")
-    col3.metric(label="**Producción Total Realizada**", value=f"{kpis['total_produccion_real']:,.0f} Unidades")
+    #col3.metric(label="**Producción Total Realizada**", value=f"{kpis['total_produccion_real']:,.0f} Unidades")
     st.markdown("---")
 
     # Gráficos de Desglose (Treemap y Pareto)
