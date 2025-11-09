@@ -18,7 +18,7 @@ with st.container():
         st.markdown("### Universidad Autónoma de Ciudad Juárez")
         st.markdown("#### Instituto de Ingeniería y Tecnología")
         st.markdown("**Programa:** Maestría en Inteligencia Artificial y Analítica de Datos")
-        st.markdown("**Materia:Programación para analítica prescriptiva y de la decisión")
+        st.markdown("**Materia:**Programación para analítica prescriptiva y de la decisión")
         st.markdown("---") # Una línea divisoria dentro de la columna
         st.markdown("**Integrantes:**")
         st.markdown("""
