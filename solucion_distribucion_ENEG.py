@@ -375,7 +375,7 @@ else:
 
     st.markdown("---")
 
-    # --- NUEVA SECCIÓN: Desglose de Costos ---
+
     st.header("Desglose de Costos de la Red (Filtrado)")
     
     # Recalcular los costos basados en los filtros
@@ -402,14 +402,15 @@ else:
         fig_pie_costos = px.pie(df_costos_pie, names='Componente de Costo', values='Costo', 
                                 title='Desglose de Costos Totales (Filtrado)',
                                 hole=0.3)
-        fig_pie_costos.update_traces(textposition='inside', textinfo='percent+label+value')
+        
+        fig_pie_costos.update_traces(textposition='outside', textinfo='percent+label+value')
+        
         st.plotly_chart(fig_pie_costos, use_container_width=True)
     else:
         st.info("No hay desglose de costos para la selección actual.")
     
     st.markdown("---")
 
-    # --- NUEVA SECCIÓN: Utilización de Infraestructura ---
     st.header("Utilización de Infraestructura (Filtrado)")
     st.caption("Muestra la utilización real vs. la capacidad disponible para los filtros seleccionados.")
     
@@ -463,7 +464,7 @@ else:
 
     st.markdown("---")
 
-    # --- SECCIÓN PARETO (Volumen vs Costo) ---
+
     st.header(f"Análisis de Clientes: Volumen vs. Costo (Filtrado)") 
     st.caption(f"Mostrando: Prod ({producto_seleccionado}) | Planta ({planta_seleccionada}) | Centro ({centro_seleccionado}) | Cliente ({cliente_seleccionado})")
     col1, col2 = st.columns(2)
@@ -529,7 +530,7 @@ else:
     st.markdown("---")
     
     # Análisis de Clientes Problemáticos (Basado en grafica.py original)
-    st.header("Análisis de Clientes Problemáticos (25% de Menor Demanda)")
+    st.header("Análisis de Clientes Menos Rentables (25% de Menor Demanda)")
     
     if cliente_seleccionado != "Todos":
         st.info(f"Ha seleccionado un solo cliente ({cliente_seleccionado}). Para ver el análisis de clientes problemáticos, cambie el filtro 'Cliente' a 'Todos'.")
@@ -580,7 +581,7 @@ else:
         else:
             st.info("No hay suficientes datos de clientes para la selección actual para realizar este análisis.")
 
-    # Tablas de Detalle (Basado en grafica.py original)
+    # Tablas de Detalle 
     st.markdown("---") 
     with st.expander("Ver Tablas de Envío Detalladas (Filtradas)"):
         st.caption("Estas tablas se actualizan con todos los filtros seleccionados.")
