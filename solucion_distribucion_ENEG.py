@@ -8,8 +8,6 @@ import io
 
 st.set_page_config(layout="wide")
 
-# (La información del proyecto se ha movido a la lógica de visualización de abajo)
-
 def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos, df_productos):
     try:
         # Calcular totales
@@ -244,7 +242,6 @@ if not st.session_state['model_run_success']:
     """)
 
 else:
-    # --- INICIO DEL DASHBOARD ACTIVO ---
     
     st.markdown("<h1 style='text-align: center; color: #0047AB;'>📊 Dashboard de Optimización de Red Logística</h1>", unsafe_allow_html=True)
     st.markdown("---")
@@ -262,7 +259,7 @@ else:
     df_costos_cj_unicos = df_costos[['Centro', 'Cliente', 'Producto', 'Costo_Centro_Cliente']].drop_duplicates()
 
     # Filtros del dashboard en la barra lateral
-    st.sidebar.header("2. Filtros del Dashboard")
+    st.sidebar.header("2. Filtros")
     
     productos_unicos = sorted(list(df_pc_full['Producto'].unique())) if not df_pc_full.empty else []
     
@@ -307,7 +304,7 @@ else:
         df_cj_filt = df_cj_filt[df_cj_filt['Centro'] == centro_seleccionado]
 
     # KPIs principales (Basados en grafica.py original)
-    st.header("KPIs Principales de la Red")
+    #st.header("KPIs Principales de la Red")
     col1, col2 = st.columns(2)
     col1.metric(label="**Costo Total Óptimo**", value=f"${kpis['costo_total_optimizado']:,.2f}")
     col2.metric(label="**Demanda Total Cubierta**", value=f"{kpis['total_demanda_cubierta']:,.0f} Unidades")
