@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 from pyomo.environ import *
 import io
 #Información del Proyecto
-LOGO_URL = "https://www.uacj.mx/prensa/logos/logouacj-u.png"
+LOGO_FILE = "logo_uacj.png"
 
 with st.container():
     col1, col2 = st.columns([1, 3]) # Columna para logo (más pequeña), columna para texto (más grande)
