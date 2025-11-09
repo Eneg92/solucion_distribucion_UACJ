@@ -1,3 +1,5 @@
 streamlit==1.33.0
 pandas==2.2.1
 Pyomo==6.7.3
+plotly==5.22.0
+pyomo==6.7.3
