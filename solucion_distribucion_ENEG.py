@@ -6,13 +6,18 @@ from plotly.subplots import make_subplots
 from pyomo.environ import *
 import io
 #Información del Proyecto
-LOGO_FILE = "logo_uacj.png"
+LOGO_FILE = "logo_uacj.png" 
 
 with st.container():
     col1, col2 = st.columns([1, 3]) # Columna para logo (más pequeña), columna para texto (más grande)
-
+    
     with col1:
-        st.image(LOGO_URL, width=200, use_column_width='auto')
+        try:
+            # --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+            # Cambiamos LOGO_URL por LOGO_FILE
+            st.image(LOGO_FILE, width=200, use_column_width='auto')
+        except Exception as e:
+            st.warning(f"No se pudo cargar el logo. Asegúrate de que 'logo_uacj.png' esté en tu repositorio de GitHub.")
 
     with col2:
         st.markdown("### Universidad Autónoma de Ciudad Juárez")
