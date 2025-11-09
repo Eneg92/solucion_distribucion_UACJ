@@ -199,7 +199,7 @@ if not st.session_state['model_run_success']:
     # --- BLOQUE DE INFORMACIÓN DEL PROYECTO (SOLO BIENVENIDA) ---
     LOGO_FILE = "logo_uacj.png" 
     with st.container():
-        col1, col2, col3 = st.columns([1, 3, 1])
+        col1, col2, col3 = st.columns([1, 3, 1]) # (Ajustado a 1,3,1 como en tu código)
         with col2:
             try:
                 st.image(LOGO_FILE, use_column_width='auto')
@@ -303,7 +303,7 @@ else:
         df_pc_filt = df_pc_filt[df_pc_filt['Centro'] == centro_seleccionado]
         df_cj_filt = df_cj_filt[df_cj_filt['Centro'] == centro_seleccionado]
 
-    # KPIs principales (Basados en grafica.py original)
+    # KPIs principales (Sin st.header, como pediste)
     col1, col2 = st.columns(2)
 
     
@@ -385,41 +385,24 @@ else:
 
     st.markdown("---")
 
-    # Gráficos de Desglose (Treemap y Pareto)
-    st.header(f"Resumen de Flujo y Demanda (Filtrado)") 
+    # --- INICIO DEL BLOQUE DE GRÁFICOS (Volumen vs Costo) ---
+    st.header(f"Análisis de Clientes: Volumen vs. Costo (Filtrado)") 
     st.caption(f"Mostrando: Prod ({producto_seleccionado}) | Planta ({planta_seleccionada}) | Centro ({centro_seleccionado}) | Cliente ({cliente_seleccionado})")
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Flujo Proporcional por Centro")
-        df_flujo_centro = df_pc_filt.groupby('Centro')['Cantidad'].sum().reset_index()
-        df_flujo_centro = df_flujo_centro[df_flujo_centro['Cantidad'] > 0]
-        if not df_flujo_centro.empty:
-            fig_treemap = go.Figure(go.Treemap(
-                labels = df_flujo_centro['Centro'],
-                parents = [""] * len(df_flujo_centro),
-                values = df_flujo_centro['Cantidad'],
-                textinfo = "label+value+percent root",
-                marker_colorscale = 'Blues'
-            ))
-            fig_treemap.update_layout(title_text="Flujo Proporcional por Centro", height=400, margin=dict(t=50, l=10, r=10, b=10))
-            st.plotly_chart(fig_treemap, use_container_width=True)
-        else:
-            st.info("No hay datos de flujo por centro para la selección actual.")
-
-    with col2:
-        st.subheader("Pareto de Demanda por Cliente")
-        df_pareto = df_cj_filt.groupby('Cliente')['Cantidad'].sum().reset_index().sort_values(by='Cantidad', ascending=False)
-        if not df_pareto.empty and df_pareto['Cantidad'].sum() > 0:
-            df_pareto['Pct'] = df_pareto['Cantidad'] / df_pareto['Cantidad'].sum()
-            df_pareto['Pct_Acumulado'] = df_pareto['Pct'].cumsum()
+        st.subheader("Pareto de Demanda (Volumen)")
+        df_pareto_demanda = df_cj_filt.groupby('Cliente')['Cantidad'].sum().reset_index().sort_values(by='Cantidad', ascending=False)
+        if not df_pareto_demanda.empty and df_pareto_demanda['Cantidad'].sum() > 0:
+            df_pareto_demanda['Pct'] = df_pareto_demanda['Cantidad'] / df_pareto_demanda['Cantidad'].sum()
+            df_pareto_demanda['Pct_Acumulado'] = df_pareto_demanda['Pct'].cumsum()
             
-            fig_pareto = make_subplots(specs=[[{"secondary_y": True}]])
-            fig_pareto.add_trace(go.Bar(x=df_pareto['Cliente'], y=df_pareto['Cantidad'], name='Demanda'), secondary_y=False)
-            fig_pareto.add_trace(go.Scatter(x=df_pareto['Cliente'], y=df_pareto['Pct_Acumulado'], name='Acumulado', mode='lines+markers'), secondary_y=True)
-            fig_pareto.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
-            fig_pareto.update_layout(
-                title_text="Pareto de Demanda por Cliente",
+            fig_pareto_d = make_subplots(specs=[[{"secondary_y": True}]])
+            fig_pareto_d.add_trace(go.Bar(x=df_pareto_demanda['Cliente'], y=df_pareto_demanda['Cantidad'], name='Demanda'), secondary_y=False)
+            fig_pareto_d.add_trace(go.Scatter(x=df_pareto_demanda['Cliente'], y=df_pareto_demanda['Pct_Acumulado'], name='Acumulado', mode='lines+markers'), secondary_y=True)
+            fig_pareto_d.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
+            fig_pareto_d.update_layout(
+                title_text="Clientes por Volumen de Demanda",
                 yaxis_title="Cantidad de Unidades",
                 yaxis2_title="Porcentaje Acumulado",
                 yaxis2_tickformat=".0%",
@@ -427,12 +410,46 @@ else:
                 xaxis_showticklabels=False,
                 margin=dict(t=50, l=10, r=10, b=10)
             )
-            st.plotly_chart(fig_pareto, use_container_width=True)
+            st.plotly_chart(fig_pareto_d, use_container_width=True)
         else:
             st.info("No hay datos de demanda por cliente para la selección actual.")
 
+    with col2:
+        st.subheader("Pareto de Costo (Rentabilidad)")
+        
+        # Calcular el costo por cliente (basado en la misma lógica del scatter plot)
+        df_costo_base = pd.merge(df_cj_filt, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
+        df_costo_base['Costo_Centro_Cliente'] = df_costo_base['Costo_Centro_Cliente'].fillna(0)
+        df_costo_base['Costo_Envio'] = df_costo_base['Cantidad'] * df_costo_base['Costo_Centro_Cliente']
+        
+        # Agrupar por cliente
+        df_pareto_costo = df_costo_base.groupby('Cliente').agg(Costo_Total=('Costo_Envio', 'sum')).reset_index().sort_values(by='Costo_Total', ascending=False)
+        
+        if not df_pareto_costo.empty and df_pareto_costo['Costo_Total'].sum() > 0:
+            df_pareto_costo['Pct'] = df_pareto_costo['Costo_Total'] / df_pareto_costo['Costo_Total'].sum()
+            df_pareto_costo['Pct_Acumulado'] = df_pareto_costo['Pct'].cumsum()
+            
+            fig_pareto_c = make_subplots(specs=[[{"secondary_y": True}]])
+            fig_pareto_c.add_trace(go.Bar(x=df_pareto_costo['Cliente'], y=df_pareto_costo['Costo_Total'], name='Costo', marker_color='red'), secondary_y=False)
+            fig_pareto_c.add_trace(go.Scatter(x=df_pareto_costo['Cliente'], y=df_pareto_costo['Pct_Acumulado'], name='Acumulado', mode='lines+markers', line_color='red'), secondary_y=True)
+            fig_pareto_c.add_hline(y=0.8, line_dash="dot", secondary_y=True, line_color="gray")
+            fig_pareto_c.update_layout(
+                title_text="Clientes por Costo de Envío",
+                yaxis_title="Costo Total de Envío ($)",
+                yaxis_tickformat="$,.0f",
+                yaxis2_title="Porcentaje Acumulado",
+                yaxis2_tickformat=".0%",
+                height=400,
+                xaxis_showticklabels=False,
+                margin=dict(t=50, l=10, r=10, b=10)
+            )
+            st.plotly_chart(fig_pareto_c, use_container_width=True)
+        else:
+            st.info("No hay datos de costo por cliente para la selección actual.")
+    # --- FIN DEL BLOQUE DE GRÁFICOS ---
+
     st.markdown("---")
-   
+    
     # Análisis de Clientes Problemáticos (Basado en grafica.py original)
     st.header("Análisis de Clientes Problemáticos (25% de Menor Demanda)")
     
