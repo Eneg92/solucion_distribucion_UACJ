@@ -27,7 +27,7 @@ with st.container():
     <div style='text-align: center;'>
     Esther Nohemi Encinas Guerrero<br>
     Jesús Alejandro Gutiérrez Araiza<br>
-    Luis Alonso Lira Mota
+    Luis Alonso Lira Mota<br><br>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'><strong>Profesor:</strong></p>", unsafe_allow_html=True)
