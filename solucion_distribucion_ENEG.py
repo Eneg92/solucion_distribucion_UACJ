@@ -304,8 +304,53 @@ else:
     col2.metric(label="**Demanda Total Cubierta**", value=f"{kpis['total_demanda_cubierta']:,.0f} Unidades")
     #col3.metric(label="**Producción Total Realizada**", value=f"{kpis['total_produccion_real']:,.0f} Unidades")
     st.markdown("---")
+    
+    # Gráficos de Medidor (Gauge) (Basados en grafica.py original)
+    st.header("Utilización de Capacidad Total (General)")
+    gauge1, gauge2 = st.columns(2)
 
- 
+    with gauge1:
+        if kpis['total_capacidad_produccion'] > 0:
+            util_prod = (kpis['total_produccion_real'] / kpis['total_capacidad_produccion']) * 100
+        else:
+            util_prod = 0
+        
+        fig_gauge_prod = go.Figure(go.Indicator(
+            mode = "gauge+number+delta", value = util_prod,
+            number = {'suffix': "%", 'font': {'size': 40}},
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': "Producción vs. Capacidad Total", 'font': {'size': 24}},
+            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}}, 
+            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
+                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
+            }
+        ))
+        fig_gauge_prod.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
+        st.plotly_chart(fig_gauge_prod, use_container_width=True)
+
+    with gauge2:
+        if kpis['total_capacidad_almacenamiento'] > 0:
+            util_cd = (kpis['total_flujo_centros'] / kpis['total_capacidad_almacenamiento']) * 100
+        else:
+            util_cd = 0
+        
+        fig_gauge_cd = go.Figure(go.Indicator(
+            mode = "gauge+number+delta", value = util_cd,
+            number = {'suffix': "%", 'font': {'size': 40}},
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': "Flujo vs. Capacidad Total de Centros", 'font': {'size': 24}},
+            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
+            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
+                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
+            }
+        ))
+        fig_gauge_cd.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
+        st.plotly_chart(fig_gauge_cd, use_container_width=True)
+
+    st.markdown("---") 
+    
     # Gráficos de Desglose (Treemap y Pareto)
     st.header(f"Resumen de Flujo y Demanda (Filtrado)") 
     st.caption(f"Mostrando: Prod ({producto_seleccionado}) | Planta ({planta_seleccionada}) | Centro ({centro_seleccionado}) | Cliente ({cliente_seleccionado})")
@@ -353,52 +398,7 @@ else:
             st.info("No hay datos de demanda por cliente para la selección actual.")
 
     st.markdown("---")
-    
-    # Gráficos de Medidor (Gauge) (Basados en grafica.py original)
-    st.header("Utilización de Capacidad Total (General)")
-    gauge1, gauge2 = st.columns(2)
 
-    with gauge1:
-        if kpis['total_capacidad_produccion'] > 0:
-            util_prod = (kpis['total_produccion_real'] / kpis['total_capacidad_produccion']) * 100
-        else:
-            util_prod = 0
-        
-        fig_gauge_prod = go.Figure(go.Indicator(
-            mode = "gauge+number+delta", value = util_prod,
-            number = {'suffix': "%", 'font': {'size': 40}},
-            domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': "Producción vs. Capacidad Total", 'font': {'size': 24}},
-            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}}, 
-            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
-                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
-            }
-        ))
-        fig_gauge_prod.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
-        st.plotly_chart(fig_gauge_prod, use_container_width=True)
-
-    with gauge2:
-        if kpis['total_capacidad_almacenamiento'] > 0:
-            util_cd = (kpis['total_flujo_centros'] / kpis['total_capacidad_almacenamiento']) * 100
-        else:
-            util_cd = 0
-        
-        fig_gauge_cd = go.Figure(go.Indicator(
-            mode = "gauge+number+delta", value = util_cd,
-            number = {'suffix': "%", 'font': {'size': 40}},
-            domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': "Flujo vs. Capacidad Total de Centros", 'font': {'size': 24}},
-            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
-            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
-                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
-            }
-        ))
-        fig_gauge_cd.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
-        st.plotly_chart(fig_gauge_cd, use_container_width=True)
-
-    st.markdown("---")
 
     # Análisis de Clientes Problemáticos (Basado en grafica.py original)
     st.header("Análisis de Clientes Problemáticos (25% de Menor Demanda)")
