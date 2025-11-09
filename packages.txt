@@ -1,3 +1,2 @@
+glpk-utils
 libglpk-dev
-libgmp3-dev
-glpk==5.0
