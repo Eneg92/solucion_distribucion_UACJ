@@ -6,23 +6,16 @@ from plotly.subplots import make_subplots
 from pyomo.environ import *
 import io
 #Información del Proyecto
-# --- NUEVA SECCIÓN: Información del Proyecto (Layout Vertical) ---
-# Asegúrate de que 'logo_uacj.png' esté subido a tu repositorio de GitHub
 LOGO_FILE = "logo_uacj.png" 
 
 with st.container():
-    
-    # --- 1. El Logo (Arriba y Centrado) ---
-    # Usamos 3 columnas para centrar la imagen del medio
-    col1, col2, col3 = st.columns([2, 1, 2]) # [Espaciador, Logo, Espaciador]
+    col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
         try:
             st.image(LOGO_FILE, use_column_width='auto')
         except Exception as e:
             st.warning(f"No se pudo cargar el logo. Asegúrate de que 'logo_uacj.png' esté en tu repositorio de GitHub.")
     
-    # --- 2. El Texto (Debajo y Centrado) ---
-    # ¡IMPORTANTE! Este código va FUERA de las columnas para que ocupe todo el ancho.
     st.markdown("<h3 style='text-align: center;'>Universidad Autónoma de Ciudad Juárez</h3>", unsafe_allow_html=True)
     st.markdown("<h4 style='text-align: center;'>Instituto de Ingeniería y Tecnología</h4>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'><strong>Programa:</strong> Maestría en Inteligencia Artificial y Analítica de Datos</p>", unsafe_allow_html=True)
@@ -42,7 +35,6 @@ with st.container():
     st.markdown("<p style='text-align: center;'><strong>Profesor:</strong> Gilberto Rivera Zarate</p>", unsafe_allow_html=True)
 
 st.markdown("---") # La línea divisoria principal de la app
-# --- FIN DE LA NUEVA SECCIÓN ---
 
 def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos, df_productos):
     try:
