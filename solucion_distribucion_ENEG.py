@@ -5,7 +5,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from pyomo.environ import *
 import io
-
+#testing
 # Configuración de la página
 st.set_page_config(layout="wide")
 st.markdown("<h1 style='text-align: center; color: #0047AB;'>Aplicación de Optimización de Red Logística</h1>", unsafe_allow_html=True)
