@@ -5,11 +5,13 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from pyomo.environ import *
 import io
+
+st.set_page_config(layout="wide")
 #Información del Proyecto
 LOGO_FILE = "logo_uacj.png" 
 
 with st.container():
-    col1, col2, col3 = st.columns([1, 3, 1])
+    col1, col2, col3 = st.columns([2, 3, 2])
     with col2:
         try:
             st.image(LOGO_FILE, use_column_width='auto')
