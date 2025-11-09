@@ -304,9 +304,9 @@ else:
         df_cj_filt = df_cj_filt[df_cj_filt['Centro'] == centro_seleccionado]
 
     # KPIs principales (Basados en grafica.py original)
-col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-    # --- CSS Personalizado para Métricas ---
+    
     # Estilo para la etiqueta (similar a st.metric)
     label_css = "font-size: 1rem; font-weight: bold; color: rgba(0, 0, 0, 0.7);"
     # Estilo para el valor (tamaño 24px)
