@@ -30,8 +30,7 @@ with st.container():
     Luis Alonso Lira Mota
     </div>
     """, unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True) 
-        st.markdown("<p style='text-align: center;'><strong>Profesor:</strong></p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'><strong>Profesor:</strong></p>", unsafe_allow_html=True)
     st.markdown("""
     <div style='text-align: center;'>
     Gilberto Rivera Zarate
