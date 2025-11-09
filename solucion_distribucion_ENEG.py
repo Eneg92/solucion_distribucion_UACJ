@@ -7,39 +7,8 @@ from pyomo.environ import *
 import io
 
 st.set_page_config(layout="wide")
-#Información del Proyecto
-LOGO_FILE = "logo_uacj.png" 
 
-with st.container():
-    col1, col2, col3 = st.columns([2, 3, 2])
-    with col2:
-        try:
-            st.image(LOGO_FILE, use_column_width='auto')
-        except Exception as e:
-            st.warning(f"No se pudo cargar el logo. Asegúrate de que 'logo_uacj.png' esté en tu repositorio de GitHub.")
-    
-    st.markdown("<h3 style='text-align: center;'>Universidad Autónoma de Ciudad Juárez</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'><strong>Programa:</strong> Maestría en Inteligencia Artificial y Analítica de Datos</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'><strong>Materia:</strong> Programación para Analítica Prescriptiva y de la Decisión</p>", unsafe_allow_html=True)
-    
-    st.markdown("---") 
-    
-    st.markdown("<p style='text-align: center;'><strong>Integrantes:</strong></p>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style='text-align: center;'>
-    Esther Nohemi Encinas Guerrero<br>
-    Jesús Alejandro Gutiérrez Araiza<br>
-    Luis Alonso Lira Mota<br><br>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'><strong>Profesor:</strong></p>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style='text-align: center;'>
-    Gilberto Rivera Zarate
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("---") # La línea divisoria principal de la app
+# (La información del proyecto se ha movido a la lógica de visualización de abajo)
 
 def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos, df_productos):
     try:
@@ -81,11 +50,11 @@ def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos,
         # Función Objetivo (Sin penalización)
         def funcion_objetivo_rule(model):
             costo_produccion = sum(model.cost_prod[p, k] * model.x[p, c, k] 
-                                   for p in model.P for c in model.C for k in model.K)
+                                    for p in model.P for c in model.C for k in model.K)
             costo_transporte_pc = sum(model.cost_pc[p, c, k] * model.x[p, c, k]
-                                      for p in model.P for c in model.C for k in model.K)
+                                        for p in model.P for c in model.C for k in model.K)
             costo_transporte_cj = sum(model.cost_cj[c, j, k] * model.y[c, j, k]
-                                      for c in model.C for j in model.J for k in model.K)
+                                        for c in model.C for j in model.J for k in model.K)
             return costo_produccion + costo_transporte_pc + costo_transporte_cj
         
         model.objetivo = Objective(rule=funcion_objetivo_rule, sense=minimize)
@@ -228,6 +197,41 @@ if st.sidebar.button("Ejecutar Optimización", disabled=not all_files_loaded, ty
 
 # Lógica de visualización del dashboard
 if not st.session_state['model_run_success']:
+    
+    # --- BLOQUE DE INFORMACIÓN DEL PROYECTO (SOLO BIENVENIDA) ---
+    LOGO_FILE = "logo_uacj.png" 
+    with st.container():
+        col1, col2, col3 = st.columns([1, 3, 1])
+        with col2:
+            try:
+                st.image(LOGO_FILE, use_column_width='auto')
+            except Exception as e:
+                st.warning(f"No se pudo cargar el logo. Asegúrate de que 'logo_uacj.png' esté en tu repositorio de GitHub.")
+        
+        st.markdown("<h3 style='text-align: center;'>Universidad Autónoma de Ciudad Juárez</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'><strong>Programa:</strong> Maestría en Inteligencia Artificial y Analítica de Datos</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'><strong>Materia:</strong> Programación para Analítica Prescriptiva y de la Decisión</p>", unsafe_allow_html=True)
+        
+        st.markdown("---") 
+        
+        st.markdown("<p style='text-align: center;'><strong>Integrantes:</strong></p>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style='text-align: center;'>
+        Esther Nohemi Encinas Guerrero<br>
+        Jesús Alejandro Gutiérrez Araiza<br>
+        Luis Alonso Lira Mota<br><br>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'><strong>Profesor:</strong></p>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style='text-align: center;'>
+        Gilberto Rivera Zarate
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---") # La línea divisoria principal de la app
+    
+    # --- MENSAJE DE BIENVENIDA ---
     st.info("Bienvenido. Por favor, cargue los 5 archivos de datos en el panel lateral y haga clic en 'Ejecutar Optimización' para ver el dashboard.")
     
     st.subheader("Archivos Requeridos:")
@@ -240,6 +244,11 @@ if not st.session_state['model_run_success']:
     """)
 
 else:
+    # --- INICIO DEL DASHBOARD ACTIVO ---
+    
+    st.markdown("<h1 style='text-align: center; color: #0047AB;'>📊 Dashboard de Optimización de Red Logística</h1>", unsafe_allow_html=True)
+    st.markdown("---")
+    
     # Cargar datos desde el estado
     kpis = st.session_state['kpis']
     df_pc_full = st.session_state['df_pc']
@@ -304,53 +313,7 @@ else:
     col2.metric(label="**Demanda Total Cubierta**", value=f"{kpis['total_demanda_cubierta']:,.0f} Unidades")
     #col3.metric(label="**Producción Total Realizada**", value=f"{kpis['total_produccion_real']:,.0f} Unidades")
     st.markdown("---")
-    
-    # Gráficos de Medidor (Gauge) (Basados en grafica.py original)
-    st.header("Utilización de Capacidad Total (General)")
-    gauge1, gauge2 = st.columns(2)
 
-    with gauge1:
-        if kpis['total_capacidad_produccion'] > 0:
-            util_prod = (kpis['total_produccion_real'] / kpis['total_capacidad_produccion']) * 100
-        else:
-            util_prod = 0
-        
-        fig_gauge_prod = go.Figure(go.Indicator(
-            mode = "gauge+number+delta", value = util_prod,
-            number = {'suffix': "%", 'font': {'size': 40}},
-            domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': "Producción vs. Capacidad Total", 'font': {'size': 24}},
-            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}}, 
-            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
-                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
-            }
-        ))
-        fig_gauge_prod.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
-        st.plotly_chart(fig_gauge_prod, use_container_width=True)
-
-    with gauge2:
-        if kpis['total_capacidad_almacenamiento'] > 0:
-            util_cd = (kpis['total_flujo_centros'] / kpis['total_capacidad_almacenamiento']) * 100
-        else:
-            util_cd = 0
-        
-        fig_gauge_cd = go.Figure(go.Indicator(
-            mode = "gauge+number+delta", value = util_cd,
-            number = {'suffix': "%", 'font': {'size': 40}},
-            domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': "Flujo vs. Capacidad Total de Centros", 'font': {'size': 24}},
-            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
-            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
-                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
-            }
-        ))
-        fig_gauge_cd.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
-        st.plotly_chart(fig_gauge_cd, use_container_width=True)
-
-    st.markdown("---") 
-    
     # Gráficos de Desglose (Treemap y Pareto)
     st.header(f"Resumen de Flujo y Demanda (Filtrado)") 
     st.caption(f"Mostrando: Prod ({producto_seleccionado}) | Planta ({planta_seleccionada}) | Centro ({centro_seleccionado}) | Cliente ({cliente_seleccionado})")
@@ -398,7 +361,52 @@ else:
             st.info("No hay datos de demanda por cliente para la selección actual.")
 
     st.markdown("---")
+    
+    # Gráficos de Medidor (Gauge) (Basados en grafica.py original)
+    st.header("Utilización de Capacidad Total (General)")
+    gauge1, gauge2 = st.columns(2)
 
+    with gauge1:
+        if kpis['total_capacidad_produccion'] > 0:
+            util_prod = (kpis['total_produccion_real'] / kpis['total_capacidad_produccion']) * 100
+        else:
+            util_prod = 0
+        
+        fig_gauge_prod = go.Figure(go.Indicator(
+            mode = "gauge+number+delta", value = util_prod,
+            number = {'suffix': "%", 'font': {'size': 40}},
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': "Producción vs. Capacidad Total", 'font': {'size': 24}},
+            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}}, 
+            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
+                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
+            }
+        ))
+        fig_gauge_prod.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
+        st.plotly_chart(fig_gauge_prod, use_container_width=True)
+
+    with gauge2:
+        if kpis['total_capacidad_almacenamiento'] > 0:
+            util_cd = (kpis['total_flujo_centros'] / kpis['total_capacidad_almacenamiento']) * 100
+        else:
+            util_cd = 0
+        
+        fig_gauge_cd = go.Figure(go.Indicator(
+            mode = "gauge+number+delta", value = util_cd,
+            number = {'suffix': "%", 'font': {'size': 40}},
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': "Flujo vs. Capacidad Total de Centros", 'font': {'size': 24}},
+            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
+            gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                     'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
+                     'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
+            }
+        ))
+        fig_gauge_cd.update_layout(height=350, margin=dict(t=50, l=10, r=10, b=10))
+        st.plotly_chart(fig_gauge_cd, use_container_width=True)
+
+    st.markdown("---")
 
     # Análisis de Clientes Problemáticos (Basado en grafica.py original)
     st.header("Análisis de Clientes Problemáticos (25% de Menor Demanda)")
