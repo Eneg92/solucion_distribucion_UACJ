@@ -8,14 +8,10 @@ import io
 
 # Configuración de la página
 st.set_page_config(layout="wide")
-st.markdown("<h1 style='text-align: center; color: #0047AB;'>📊 Aplicación de Optimización de Red Logística</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #0047AB;'>Aplicación de Optimización de Red Logística</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos, df_productos):
-    """
-    Ejecuta el modelo de optimización de Pyomo con los DataFrames proporcionados.
-    (Versión original "Estricta" con restricción de demanda dura, basada en Programa1.py)
-    """
     try:
         # Calcular totales
         total_demanda_requerida = df_clientes['Demanda'].sum()
