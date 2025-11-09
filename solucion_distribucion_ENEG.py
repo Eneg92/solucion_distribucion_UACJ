@@ -17,8 +17,8 @@ with st.container():
     with col2:
         st.markdown("### Universidad Autónoma de Ciudad Juárez")
         st.markdown("#### Instituto de Ingeniería y Tecnología")
-        st.markdown("**Programa:** Ingeniería Industrial y de Sistemas")
-        st.markdown("**Materia:** <--- (Escribe el nombre de tu materia aquí) --->")
+        st.markdown("**Programa:** Maestría en Inteligencia Artificial y Analítica de Datos")
+        st.markdown("**Materia:Programación para analítica prescriptiva y de la decisión")
         st.markdown("---") # Una línea divisoria dentro de la columna
         st.markdown("**Integrantes:**")
         st.markdown("""
@@ -26,7 +26,7 @@ with st.container():
         * Jesús Alejandro Gutiérrez Araiza
         * Luis Alonso Lira Mota
         """)
-        st.markdown("**Profesor:** <--- (Escribe el nombre de tu profesor aquí) --->")
+        st.markdown("**Profesor:** Gilberto Rivera Zarate")
 
 st.markdown("---") # La línea divisoria principal de la app
 
