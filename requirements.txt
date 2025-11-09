@@ -1,1 +1,4 @@
-streamlit pandas plotly pyomo
+streamlit==1.33.0
+pandas==2.2.1
+plotly==5.22.0
+Pyomo==6.7.3
