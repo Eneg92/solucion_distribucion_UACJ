@@ -8,8 +8,48 @@ import io
 
 st.set_page_config(layout="wide")
 
-def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos, df_productos):
+# --- NUEVA FUNCIÓN DE TRANSFORMACIÓN Y RESOLUCIÓN ---
+# Modificada para aceptar los nuevos archivos de costos y transformarlos
+def transformar_y_resolver(df_plantas, df_centros, df_clientes, df_costos_pc_raw, df_costos_cj_raw):
     try:
+        # --- 1. Transformación de Costos (Planta-Centro) ---
+        
+        # Renombrar la columna 'Producto ' (con espacio) a 'Producto'
+        df_costos_pc_raw = df_costos_pc_raw.rename(columns={'Producto ': 'Producto'})
+        
+        # 'Derretir' (un-pivot) el DataFrame
+        id_vars_pc = ['Planta', 'Producto']
+        value_vars_pc = [col for col in df_costos_pc_raw.columns if col not in id_vars_pc]
+        df_costos_pc_long = pd.melt(df_costos_pc_raw, 
+                                    id_vars=id_vars_pc, 
+                                    value_vars=value_vars_pc, 
+                                    var_name='Centro', 
+                                    value_name='Costo_Plant_Centro')
+
+        # Estandarizar los IDs para que coincidan con los otros archivos
+        df_costos_pc_long['Planta'] = 'Planta_' + df_costos_pc_long['Planta'].astype(str)
+        df_costos_pc_long['Producto'] = 'Producto_' + df_costos_pc_long['Producto'].astype(str)
+        df_costos_pc_long['Centro'] = 'Centro_' + df_costos_pc_long['Centro'].str.replace('centro', '')
+
+        # --- 2. Transformación de Costos (Centro-Cliente) ---
+        
+        # 'Derretir' (un-pivot) el DataFrame
+        id_vars_cj = ['Producto', 'Centro']
+        value_vars_cj = [col for col in df_costos_cj_raw.columns if col not in id_vars_cj]
+        df_costos_cj_long = pd.melt(df_costos_cj_raw, 
+                                    id_vars=id_vars_cj, 
+                                    value_vars=value_vars_cj, 
+                                    var_name='Cliente', 
+                                    value_name='Costo_Centro_Cliente')
+        
+        # Estandarizar los IDs
+        df_costos_cj_long['Producto'] = 'Producto_' + df_costos_cj_long['Producto'].astype(str)
+        df_costos_cj_long['Centro'] = 'Centro_' + df_costos_cj_long['Centro'].astype(str)
+        df_costos_cj_long['Cliente'] = 'Cliente_' + df_costos_cj_long['Cliente'].str.replace('Cliente', '')
+
+        
+        # --- 3. Lógica de Optimización (como antes, pero con los DFs transformados) ---
+        
         # Calcular totales
         total_demanda_requerida = df_clientes['Demanda'].sum()
         total_capacidad_produccion = df_plantas['Capacidad_Produccion'].sum()
@@ -19,17 +59,18 @@ def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos,
         P = df_plantas['Planta'].unique()
         C = df_centros['Centro'].unique()
         J = df_clientes['Cliente'].unique()
-        K = df_productos['Producto'].unique()
+        # El conjunto K ahora se deriva de df_plantas, no del df_productos
+        K = df_plantas['Producto'].unique() 
 
-        # Parámetros
+        # Parámetros (usando los DFs originales y los nuevos DFs transformados)
         demanda = df_clientes.set_index(['Cliente', 'Producto'])['Demanda'].to_dict()
         cap_prod = df_plantas.set_index(['Planta', 'Producto'])['Capacidad_Produccion'].to_dict()
         cost_prod = df_plantas.set_index(['Planta', 'Producto'])['Costo_Produccion'].to_dict()
         cap_alm = df_centros.set_index(['Centro', 'Producto'])['Capacidad_Almacenamiento'].to_dict()
-        cost_pc_df = df_costos.drop_duplicates(subset=['Planta', 'Centro', 'Producto'])
-        cost_pc = cost_pc_df.set_index(['Planta', 'Centro', 'Producto'])['Costo_Plant_Centro'].to_dict()
-        cost_cj_df = df_costos.drop_duplicates(subset=['Centro', 'Cliente', 'Producto'])
-        cost_cj = cost_cj_df.set_index(['Centro', 'Cliente', 'Producto'])['Costo_Centro_Cliente'].to_dict()
+        
+        # Usar los DFs largos y limpios directamente
+        cost_pc = df_costos_pc_long.set_index(['Planta', 'Centro', 'Producto'])['Costo_Plant_Centro'].to_dict()
+        cost_cj = df_costos_cj_long.set_index(['Centro', 'Cliente', 'Producto'])['Costo_Centro_Cliente'].to_dict()
 
         model = ConcreteModel()
         model.P, model.C, model.J, model.K = Set(initialize=P), Set(initialize=C), Set(initialize=J), Set(initialize=K)
@@ -47,12 +88,12 @@ def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos,
 
         # Función Objetivo
         def funcion_objetivo_rule(model):
-            costo_produccion = sum(model.cost_prod[p, k] * model.x[p, c, k] 
-                                    for p in model.P for c in model.C for k in model.K)
+            costo_produccion = sum(model.cost_prod[p, k] * model.x[p, c, k]  
+                                   for p in model.P for c in model.C for k in model.K if (p,k) in model.cost_prod and (p,c,k) in model.x)
             costo_transporte_pc = sum(model.cost_pc[p, c, k] * model.x[p, c, k]
-                                        for p in model.P for c in model.C for k in model.K)
+                                      for p in model.P for c in model.C for k in model.K if (p,c,k) in model.cost_pc)
             costo_transporte_cj = sum(model.cost_cj[c, j, k] * model.y[c, j, k]
-                                        for c in model.C for j in model.J for k in model.K)
+                                      for c in model.C for j in model.J for k in model.K if (c,j,k) in model.cost_cj)
             return costo_produccion + costo_transporte_pc + costo_transporte_cj
         
         model.objetivo = Objective(rule=funcion_objetivo_rule, sense=minimize)
@@ -78,7 +119,7 @@ def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos,
         solver = SolverFactory('glpk')
         if not solver.available():
             st.error("Error: El solver GLPK no está disponible.")
-            return None, None, None, "Solver no encontrado"
+            return None, None, None, None, None, "Solver no encontrado"
             
         results = solver.solve(model, tee=False)
 
@@ -115,14 +156,15 @@ def resolver_modelo_distribucion(df_plantas, df_centros, df_clientes, df_costos,
                 'total_capacidad_almacenamiento': int(total_capacidad_almacenamiento)
             }
             
-            return kpi_data, df_x, df_y, None
+            # Devolver los DFs de costos transformados para el dashboard
+            return kpi_data, df_x, df_y, df_costos_pc_long, df_costos_cj_long, None
 
         else:
             msg = f"No se encontró una solución óptima. Estado: {results.solver.status}, Condición: {results.solver.termination_condition}. (Esto puede ocurrir si la capacidad es insuficiente para la demanda)"
-            return None, None, None, msg
+            return None, None, None, None, None, msg
 
     except Exception as e:
-        return None, None, None, f"Error durante la optimización: {str(e)}"
+        return None, None, None, None, None, f"Error durante la optimización o transformación: {str(e)}"
 
 # Inicializar estado de la sesión
 if 'model_run_success' not in st.session_state:
@@ -133,46 +175,56 @@ if 'df_pc' not in st.session_state:
     st.session_state['df_pc'] = None
 if 'df_cj' not in st.session_state:
     st.session_state['df_cj'] = None
-if 'df_costos' not in st.session_state:
-    st.session_state['df_costos'] = None
+# Reemplazar 'df_costos' por los dos nuevos DFs de costos transformados
+if 'df_costos_pc_long' not in st.session_state:
+    st.session_state['df_costos_pc_long'] = None
+if 'df_costos_cj_long' not in st.session_state:
+    st.session_state['df_costos_cj_long'] = None
 if 'df_plantas' not in st.session_state:
     st.session_state['df_plantas'] = None
 if 'df_centros' not in st.session_state:
     st.session_state['df_centros'] = None
 
-# Barra lateral para carga y ejecución
+# --- BARRA LATERAL ACTUALIZADA ---
 st.sidebar.header("Panel de Control")
 
 with st.sidebar.expander("1. Cargar Archivos de Datos", expanded=True):
     file_plantas = st.file_uploader("Cargar 'plantas.csv'", type="csv")
     file_centros = st.file_uploader("Cargar 'centros.csv'", type="csv")
     file_clientes = st.file_uploader("Cargar 'clientes.csv'", type="csv")
-    file_costos = st.file_uploader("Cargar 'costos.csv'", type="csv")
-    file_productos = st.file_uploader("Cargar 'productos.csv'", type="csv")
+    # Nuevos file uploaders para los archivos de costos
+    file_costos_pc = st.file_uploader("Cargar 'Costos Plantas x CeDis.csv'", type="csv")
+    file_costos_cj = st.file_uploader("Cargar 'Costos CeDis x Cliente.csv'", type="csv")
 
-files_uploaded = [file_plantas, file_centros, file_clientes, file_costos, file_productos]
+# Actualizar la lista de archivos cargados
+files_uploaded = [file_plantas, file_centros, file_clientes, file_costos_pc, file_costos_cj]
 all_files_loaded = all(f is not None for f in files_uploaded)
 
 if st.sidebar.button("Ejecutar Optimización", disabled=not all_files_loaded, type="primary"):
     if all_files_loaded:
-        with st.spinner("Leyendo archivos y ejecutando optimización..."):
+        with st.spinner("Leyendo archivos, transformando datos y ejecutando optimización..."):
             try:
                 # Resetear el puntero de los archivos antes de leer
                 file_plantas.seek(0); df_plantas = pd.read_csv(file_plantas)
                 file_centros.seek(0); df_centros = pd.read_csv(file_centros)
                 file_clientes.seek(0); df_clientes = pd.read_csv(file_clientes)
-                file_costos.seek(0); df_costos = pd.read_csv(file_costos)
-                file_productos.seek(0); df_productos = pd.read_csv(file_productos)
+                # Cargar los nuevos archivos raw de costos
+                file_costos_pc.seek(0); df_costos_pc_raw = pd.read_csv(file_costos_pc)
+                file_costos_cj.seek(0); df_costos_cj_raw = pd.read_csv(file_costos_cj)
                 
-                kpis, df_x, df_y, error_msg = resolver_modelo_distribucion(
-                    df_plantas, df_centros, df_clientes, df_costos, df_productos
+                # Llamar a la función actualizada
+                kpis, df_x, df_y, df_costos_pc_long, df_costos_cj_long, error_msg = transformar_y_resolver(
+                    df_plantas, df_centros, df_clientes, df_costos_pc_raw, df_costos_cj_raw
                 )
                 
                 if kpis:
                     st.session_state['kpis'] = kpis
                     st.session_state['df_pc'] = df_x
                     st.session_state['df_cj'] = df_y
-                    st.session_state['df_costos'] = df_costos
+                    # Guardar los DFs transformados en el estado
+                    st.session_state['df_costos_pc_long'] = df_costos_pc_long
+                    st.session_state['df_costos_cj_long'] = df_costos_cj_long
+                    # Guardar DFs base para los filtros de capacidad
                     st.session_state['df_plantas'] = df_plantas
                     st.session_state['df_centros'] = df_centros
                     
@@ -189,11 +241,11 @@ if st.sidebar.button("Ejecutar Optimización", disabled=not all_files_loaded, ty
     else:
         st.sidebar.warning("Por favor, cargue los 5 archivos CSV requeridos.")
 
-# Lógica de visualización del dashboard
+# --- LÓGICA DE VISUALIZACIÓN DEL DASHBOARD ---
 if not st.session_state['model_run_success']:
     
     # INFORMACIÓN DEL PROYECTO
-    LOGO_FILE = "logo_uacj.png" 
+    LOGO_FILE = "logo_uacj.png"  
     with st.container():
         col1, col2, col3 = st.columns([2, 3, 2])
         with col2:
@@ -206,7 +258,7 @@ if not st.session_state['model_run_success']:
         st.markdown("<p style='text-align: center;'><strong>Programa:</strong> Maestría en Inteligencia Artificial y Analítica de Datos</p>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center;'><strong>Materia:</strong> Programación para Analítica Prescriptiva y de la Decisión</p>", unsafe_allow_html=True)
         
-        st.markdown("---") 
+        st.markdown("---")  
         
         st.markdown("<p style='text-align: center;'><strong>Integrantes:</strong></p>", unsafe_allow_html=True)
         st.markdown("""
@@ -228,13 +280,13 @@ if not st.session_state['model_run_success']:
     #MENSAJE DE BIENVENIDA
     st.info("Bienvenido. Por favor, cargue los 5 archivos de datos en el panel lateral y haga clic en 'Ejecutar Optimización' para ver el dashboard.")
     
-    st.subheader("Archivos Requeridos:")
+    st.subheader("Archivos Requeridos (Nuevo Formato):")
     st.markdown("""
     * **plantas.csv**: `Planta`, `Producto`, `Capacidad_Produccion`, `Costo_Produccion`
     * **centros.csv**: `Centro`, `Producto`, `Capacidad_Almacenamiento`
     * **clientes.csv**: `Cliente`, `Producto`, `Demanda`
-    * **costos.csv**: `Planta`, `Centro`, `Producto`, `Cliente`, `Costo_Plant_Centro`, `Costo_Centro_Cliente`
-    * **productos.csv**: `Producto`
+    * **Costos Plantas x CeDis.csv**: *(Formato Matriz)* `Planta`, `Producto `, `centro1`, `centro2`, ...
+    * **Costos CeDis x Cliente.csv**: *(Formato Matriz)* `Producto`, `Centro`, `Cliente1`, `Cliente2`, ...
     """)
 
 else:
@@ -242,20 +294,26 @@ else:
     st.markdown("<h1 style='text-align: center; color: #0047AB;'>📊 Dashboard de Optimización de Red Logística</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Cargar datos desde el estado
+    # Cargar datos desde el estado (nombres actualizados)
     kpis = st.session_state['kpis']
     df_pc_full = st.session_state['df_pc']
     df_cj_full = st.session_state['df_cj']
-    df_costos = st.session_state['df_costos']
+    # Cargar los DFs de costos transformados
+    df_costos_pc_unicos = st.session_state['df_costos_pc_long']
+    df_costos_cj_unicos = st.session_state['df_costos_cj_long']
+    
     df_plantas_full = st.session_state['df_plantas']
     df_centros_full = st.session_state['df_centros']
     
-    if df_costos is None or df_costos.empty or df_plantas_full is None or df_centros_full is None:
+    # Validar que los nuevos DFs de costos se cargaron
+    if df_costos_cj_unicos is None or df_costos_cj_unicos.empty or \
+       df_costos_pc_unicos is None or df_costos_pc_unicos.empty or \
+       df_plantas_full is None or df_centros_full is None:
         st.error("No se pudieron cargar todos los datos para el análisis. Por favor, intente ejecutar de nuevo.")
         st.stop()
         
-    df_costos_cj_unicos = df_costos[['Centro', 'Cliente', 'Producto', 'Costo_Centro_Cliente']].drop_duplicates()
-    df_costos_pc_unicos = df_costos[['Planta', 'Centro', 'Producto', 'Costo_Plant_Centro']].drop_duplicates()
+    # La lógica para extraer costos únicos del 'df_costos' unificado ya no es necesaria,
+    # porque df_costos_pc_unicos y df_costos_cj_unicos ya están listos.
 
     # Filtros del dashboard en la barra lateral
     st.sidebar.header("2. Filtros")
@@ -316,7 +374,7 @@ else:
     col1, col2 = st.columns(2)
     
     label_css = "font-size: 1rem; font-weight: bold; color: rgba(0, 0, 0, 0.7);"
-    value_css = "font-size: 24px; font-weight: bold; line-height: 1.5;" 
+    value_css = "font-size: 24px; font-weight: bold; line-height: 1.5;"  
 
     costo_label = "Costo Total Óptimo"
     costo_value = f"${kpis['costo_total_optimizado']:,.2f}"
@@ -343,7 +401,7 @@ else:
             number = {'suffix': "%", 'font': {'size': 40}},
             domain = {'x': [0, 1], 'y': [0, 1]},
             title = {'text': "Producción vs. Capacidad Total", 'font': {'size': 24}},
-            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}}, 
+            delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},  
             gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
                      'bar': {'color': "#0047AB"}, 'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "gray",
                      'steps': [{'range': [0, 50], 'color': '#FFB0B0'}, {'range': [50, 80], 'color': '#FFF1B0'}, {'range': [80, 100], 'color': '#B0FFB0'}]
@@ -387,7 +445,7 @@ else:
             df_util_plantas['Utilización (%)'] = (df_util_plantas['Cantidad'] / df_util_plantas['Capacidad_Produccion']) * 100
             df_util_plantas = df_util_plantas.sort_values(by='Utilización (%)', ascending=False)
             
-            fig_util_p = px.bar(df_util_plantas, y='Planta', x='Utilización (%)', 
+            fig_util_p = px.bar(df_util_plantas, y='Planta', x='Utilización (%)',  
                                 text=df_util_plantas['Utilización (%)'].apply(lambda x: f'{x:.1f}%'),
                                 title='Utilización por Planta',
                                 hover_data=['Cantidad', 'Capacidad_Produccion'])
@@ -407,7 +465,7 @@ else:
             df_util_centros['Utilización (%)'] = (df_util_centros['Cantidad'] / df_util_centros['Capacidad_Almacenamiento']) * 100
             df_util_centros = df_util_centros.sort_values(by='Utilización (%)', ascending=False)
             
-            fig_util_c = px.bar(df_util_centros, y='Centro', x='Utilización (%)', 
+            fig_util_c = px.bar(df_util_centros, y='Centro', x='Utilización (%)',  
                                 text=df_util_centros['Utilización (%)'].apply(lambda x: f'{x:.1f}%'),
                                 title='Utilización por Centro',
                                 hover_data=['Cantidad', 'Capacidad_Almacenamiento'])
@@ -421,13 +479,23 @@ else:
     st.header("Desglose de Costos de la Red (Filtrado)")
     
     # Recalcular los costos basados en los filtros
+    # df_costos_pc_unicos y df_costos_cj_unicos AHORA VIENEN DEL SESSION STATE (YA TRANSFORMADOS)
+    
+    # Aplicar filtros de producto a los DFs de costos también
+    if producto_seleccionado != "Todos":
+        df_costos_pc_filt = df_costos_pc_unicos[df_costos_pc_unicos['Producto'] == producto_seleccionado]
+        df_costos_cj_filt = df_costos_cj_unicos[df_costos_cj_unicos['Producto'] == producto_seleccionado]
+    else:
+        df_costos_pc_filt = df_costos_pc_unicos
+        df_costos_cj_filt = df_costos_cj_unicos
+        
     df_prod_cost = pd.merge(df_pc_filt, df_plantas_full[['Planta', 'Producto', 'Costo_Produccion']].drop_duplicates(), on=['Planta', 'Producto'], how='left')
     costo_produccion_calc = (df_prod_cost['Cantidad'] * df_prod_cost['Costo_Produccion']).sum()
 
-    df_pc_cost = pd.merge(df_pc_filt, df_costos_pc_unicos, on=['Planta', 'Centro', 'Producto'], how='left')
+    df_pc_cost = pd.merge(df_pc_filt, df_costos_pc_filt, on=['Planta', 'Centro', 'Producto'], how='left')
     costo_pc_calc = (df_pc_cost['Cantidad'] * df_pc_cost['Costo_Plant_Centro']).sum()
 
-    df_cj_cost = pd.merge(df_cj_filt, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
+    df_cj_cost = pd.merge(df_cj_filt, df_costos_cj_filt, on=['Centro', 'Cliente', 'Producto'], how='left')
     costo_cj_calc = (df_cj_cost['Cantidad'] * df_cj_cost['Costo_Centro_Cliente']).sum()
 
     df_costos_pie = pd.DataFrame({
@@ -438,7 +506,7 @@ else:
     df_costos_pie = df_costos_pie[df_costos_pie['Costo'] > 0]
 
     if not df_costos_pie.empty:
-        fig_pie_costos = px.pie(df_costos_pie, names='Componente de Costo', values='Costo', 
+        fig_pie_costos = px.pie(df_costos_pie, names='Componente de Costo', values='Costo',  
                                 title='Desglose de Costos Totales (Filtrado)',
                                 hole=0.3)
         # Mover etiquetas afuera
@@ -452,10 +520,11 @@ else:
     st.header("Análisis de Costos por Cliente (Top 25)")
     st.caption(f"Muestra los 25 clientes principales para cada componente de costo. Todos los costos (excepto C-J) se asignan en función del flujo del cliente.")
 
-    #  Lógica de Asignación de Costos 
+    #  Lógica de Asignación de Costos  
     
     # 1. Costo_CJ (Centro-Cliente) - Directo
-    df_cj_cost = pd.merge(df_cj_filt, df_costos_cj_unicos, on=['Centro', 'Cliente', 'Producto'], how='left')
+    # df_costos_cj_filt YA ESTÁ FILTRADO POR PRODUCTO
+    df_cj_cost = pd.merge(df_cj_filt, df_costos_cj_filt, on=['Centro', 'Cliente', 'Producto'], how='left')
     df_cj_cost['Costo_CJ_Calc'] = df_cj_cost['Cantidad'] * df_cj_cost['Costo_Centro_Cliente'].fillna(0)
     costos_cj_por_cliente = df_cj_cost.groupby('Cliente')['Costo_CJ_Calc'].sum().reset_index()
 
@@ -475,7 +544,8 @@ else:
     costos_prod_por_cliente = df_prod_alloc.groupby('Cliente')['Costo_Prod_Allocated'].sum().reset_index()
 
     # 4. Costo_PC (Planta-Centro) - Asignado
-    df_pc_cost_base = pd.merge(df_pc_filt, df_costos_pc_unicos, on=['Planta', 'Centro', 'Producto'], how='left')
+    # df_costos_pc_filt YA ESTÁ FILTRADO POR PRODUCTO
+    df_pc_cost_base = pd.merge(df_pc_filt, df_costos_pc_filt, on=['Planta', 'Centro', 'Producto'], how='left')
     df_pc_cost_base['Costo_PC_Calc'] = df_pc_cost_base['Cantidad'] * df_pc_cost_base['Costo_Plant_Centro'].fillna(0)
     costo_pc_por_centro_prod = df_pc_cost_base.groupby(['Centro', 'Producto'])['Costo_PC_Calc'].sum().reset_index()
 
@@ -549,10 +619,10 @@ else:
             df_scatter_bottom25 = df_scatter[df_scatter['Cantidad_Total'] <= q1_cantidad].copy()
             if not df_scatter_bottom25.empty:
                 fig_scatter = px.scatter(
-                    df_scatter_bottom25, 
+                    df_scatter_bottom25,  
                     x='Cantidad_Total',
-                    y='Costo_Total', 
-                    text='Cliente', 
+                    y='Costo_Total',  
+                    text='Cliente',  
                     title=f"Clientes con Demanda Menor o Igual a {q1_cantidad:,.0f} unidades",
                     hover_data=['Costo_Prod_Allocated', 'Costo_PC_Allocated', 'Costo_CJ_Calc'] # Añadido para más detalle
                 )
@@ -571,7 +641,7 @@ else:
             st.info("No hay suficientes datos de clientes para la selección actual para realizar este análisis.")
 
     # Tablas
-    st.markdown("---") 
+    st.markdown("---")  
     with st.expander("Ver Tablas de Envío Detalladas (Filtradas)"):
         st.caption("Estas tablas se actualizan con todos los filtros seleccionados.")
         tbl1, tbl2 = st.columns(2)
